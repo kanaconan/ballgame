@@ -1,0 +1,303 @@
+#include "stdafx.h"
+#include "Game.h"
+
+#include <math.h>
+#include "GameDoc.h"
+#include "GameView.h"
+
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#undef THIS_FILE
+static char THIS_FILE[] = __FILE__;
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+// CGameView
+
+IMPLEMENT_DYNCREATE(CGameView, CView)
+
+BEGIN_MESSAGE_MAP(CGameView, CView)
+	//{{AFX_MSG_MAP(CGameView)
+	ON_WM_MOUSEMOVE()
+	ON_WM_LBUTTONUP()
+	ON_WM_LBUTTONDOWN()
+	ON_WM_TIMER()
+	ON_COMMAND(ID_GAME_PAUSE, OnGameEnd)
+	ON_COMMAND(ID_GAME_START, OnGameStart)
+	ON_UPDATE_COMMAND_UI(ID_GAME_PAUSE, OnUpdateGameEnd)
+	ON_UPDATE_COMMAND_UI(ID_GAME_START, OnUpdateGameStart)
+	//}}AFX_MSG_MAP
+	// Standard printing commands
+	ON_COMMAND(ID_FILE_PRINT, CView::OnFilePrint)
+	ON_COMMAND(ID_FILE_PRINT_DIRECT, CView::OnFilePrint)
+	ON_COMMAND(ID_FILE_PRINT_PREVIEW, CView::OnFilePrintPreview)
+END_MESSAGE_MAP()
+
+/////////////////////////////////////////////////////////////////////////////
+// CGameView construction/destruction
+
+CGameView::CGameView()
+{
+	// TODO: add construction code here
+	m_Dragging = FALSE;
+	m_failed   = FALSE;
+	m_start    = FALSE;
+	m_BlockStartPoint = CPoint(300, 100);
+}
+
+CGameView::~CGameView()
+{
+	//KillTimer(1);
+}
+
+BOOL CGameView::PreCreateWindow(CREATESTRUCT& cs)
+{
+	// TODO: Modify the Window class or styles here by modifying
+	//  the CREATESTRUCT cs
+
+	return CView::PreCreateWindow(cs);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// CGameView drawing
+
+void CGameView::OnDraw(CDC* pDC)
+{
+	CGameDoc* pDoc = GetDocument();
+	ASSERT_VALID(pDoc);
+
+	// TODO: add draw code for native data here
+
+	// 根据方块状态标记画方块组（只画状态为1的方块，每个方块大小：20×50）
+	for(int i = 0; i < 8; i++)
+		for(int j = 0; j < 8; j++)
+		{
+			if(pDoc->m_flag[i][j])
+			{
+				pDC->Rectangle(m_BlockStartPoint.x + i*50, m_BlockStartPoint.y + j*20, m_BlockStartPoint.x + (i+1)*50, m_BlockStartPoint.y + (j+1)*20);
+			}
+		}
+
+	// 根据挡板左上角坐标，画挡板方块（挡板大小：15×100）
+	pDC->Rectangle(pDoc->m_ptRect.x, pDoc->m_ptRect.y, pDoc->m_ptRect.x+100, pDoc->m_ptRect.y+15);
+
+	// 根据小球左上角坐标，画小球（直径为10）
+	pDC->Ellipse(pDoc->m_ptBall.x, pDoc->m_ptBall.y, pDoc->m_ptBall.x+10, pDoc->m_ptBall.y+10);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// CGameView printing
+
+BOOL CGameView::OnPreparePrinting(CPrintInfo* pInfo)
+{
+	// default preparation
+	return DoPreparePrinting(pInfo);
+}
+
+void CGameView::OnBeginPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
+{
+	// TODO: add extra initialization before printing
+}
+
+void CGameView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
+{
+	// TODO: add cleanup after printing
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// CGameView diagnostics
+
+#ifdef _DEBUG
+void CGameView::AssertValid() const
+{
+	CView::AssertValid();
+}
+
+void CGameView::Dump(CDumpContext& dc) const
+{
+	CView::Dump(dc);
+}
+
+CGameDoc* CGameView::GetDocument() // non-debug version is inline
+{
+	ASSERT(m_pDocument->IsKindOf(RUNTIME_CLASS(CGameDoc)));
+	return (CGameDoc*)m_pDocument;
+}
+#endif //_DEBUG
+
+/////////////////////////////////////////////////////////////////////////////
+// CGameView message handlers
+
+void CGameView::OnMouseMove(UINT nFlags, CPoint point) 
+{
+	// TODO: Add your message handler code here and/or call default
+	if(m_Dragging)
+	{
+		CGameDoc* pDoc = GetDocument();
+
+		// 根据鼠标坐标，横向移动挡板
+		pDoc->m_ptRect.x = point.x-50;
+		Invalidate();
+	}
+
+	CView::OnMouseMove(nFlags, point);
+}
+
+void CGameView::OnLButtonUp(UINT nFlags, CPoint point) 
+{
+	// TODO: Add your message handler code here and/or call default
+	m_Dragging = FALSE;
+	CView::OnLButtonUp(nFlags, point);
+}
+
+void CGameView::OnLButtonDown(UINT nFlags, CPoint point) 
+{
+	// TODO: Add your message handler code here and/or call default
+	CGameDoc* pDoc = GetDocument();
+	if( point.x > pDoc->m_ptRect.x && point.x < pDoc->m_ptRect.x+100
+		&& point.y > pDoc->m_ptRect.y && point.y < pDoc->m_ptRect.y+15 )
+		m_Dragging = TRUE;
+
+	CView::OnLButtonDown(nFlags, point);
+}
+
+void CGameView::OnGameStart() 
+{
+	// TODO: Add your command handler code here
+	m_start = TRUE;
+	SetTimer(1, 20, NULL);	// 设置定时器
+}
+
+void CGameView::OnGameEnd() 
+{
+	// TODO: Add your command handler code here
+	m_start = FALSE;
+	KillTimer(1);			// 释放定时器
+}
+
+void CGameView::OnUpdateGameStart(CCmdUI* pCmdUI) 
+{
+	// TODO: Add your command update UI handler code here
+	if(m_start)
+		pCmdUI->Enable(FALSE);
+	else
+		pCmdUI->Enable(TRUE);
+}
+
+void CGameView::OnUpdateGameEnd(CCmdUI* pCmdUI) 
+{
+	// TODO: Add your command update UI handler code here	
+	if(m_start)
+		pCmdUI->Enable(TRUE);
+	else
+		pCmdUI->Enable(FALSE);
+}
+
+void CGameView::OnTimer(UINT nIDEvent) 
+{
+	// TODO: Add your message handler code here and/or call default	
+	CGameDoc* pDoc = GetDocument();
+
+	// 根据小球的移动角度，计算单位移动步长的横（纵）坐标
+	double nx = cos(pDoc->m_angle);
+	double ny = sin(pDoc->m_angle);
+
+	// 更新小球位置
+	pDoc->m_ptBall.x += 5 * nx;
+	pDoc->m_ptBall.y += 5 * ny;
+
+	// 判断游戏是否失败，若未失败，则尝试更新其移动角度
+	if(m_failed)
+	{
+		KillTimer(1);
+		AfxMessageBox("游戏失败，重新开始！");
+		m_Dragging = FALSE;
+		m_failed   = FALSE;
+		m_start    = FALSE;
+		m_BlockStartPoint = CPoint(300, 100);
+
+		pDoc->m_ptRect = CPoint(450, 400);
+		pDoc->m_ptBall = CPoint(100, 100);
+		pDoc->m_angle  = 3.14/4;
+
+		for(int i = 0; i < 8; i++)
+			for(int j = 0; j < 8; j++)
+				pDoc->m_flag[i][j] = true;
+	}
+	else
+	{
+		AngleUpdate();
+		Invalidate();
+	}
+
+	CView::OnTimer(nIDEvent);
+}
+
+// 角度更新函数
+void CGameView::AngleUpdate()
+{	
+	CRect clientRect;
+	GetClientRect(&clientRect);
+	CGameDoc* pDoc = GetDocument();
+
+	if(pDoc->m_ptBall.x <= clientRect.left)							// 左边框碰撞检测与角度更新
+	{
+		if(pDoc->m_angle > 3.14)
+			pDoc->m_angle = 3*3.14-pDoc->m_angle;
+		else
+			pDoc->m_angle = 3.14-pDoc->m_angle;
+	}
+	else if(pDoc->m_ptBall.x >= clientRect.right-10)				// 右边框碰撞检测与角度更新
+	{
+		if(pDoc->m_angle < 3.14/2)
+			pDoc->m_angle = 3.14-pDoc->m_angle;
+		else
+			pDoc->m_angle = 3.14-pDoc->m_angle;
+	}
+	else if(pDoc->m_ptBall.y <= clientRect.top)						// 上边框碰撞检测与角度更新
+	{
+		pDoc->m_angle = 2*3.14 - pDoc->m_angle;
+	}
+	else if(pDoc->m_ptBall.y >= pDoc->m_ptRect.y-10)				// 挡板碰撞检测与角度更新
+	{
+		if(pDoc->m_ptBall.x < pDoc->m_ptRect.x || pDoc->m_ptBall.x > pDoc->m_ptRect.x + 100)
+		{
+			m_failed = TRUE;
+		}
+		else
+			pDoc->m_angle = 2*3.14 - pDoc->m_angle;
+	}		// 以下为砖块碰撞检测与角度更新，以及砖块状态更新（状态为0，意味砖块被碰撞消失）
+	else if(pDoc->m_ptBall.x > m_BlockStartPoint.x && pDoc->m_ptBall.y > m_BlockStartPoint.y)
+	{
+		int nx = (pDoc->m_ptBall.x-m_BlockStartPoint.x)/50;
+		int ny = (pDoc->m_ptBall.y-m_BlockStartPoint.y)/20;
+
+		if(nx < 8 && nx >= 0 && ny < 8 && ny >= 0 && pDoc->m_flag[nx][ny])  // 砖块碰撞检测
+		{
+			pDoc->m_flag[nx][ny] = 0;										// 砖块碰撞状态改变
+
+			if(m_BlockStartPoint.x + (nx+1)*50 - pDoc->m_ptBall.x < 10)		// 从右边碰撞砖块后小球角度更新
+			{
+				if(pDoc->m_angle > 3.14)
+					pDoc->m_angle = 3*3.14-pDoc->m_angle;
+				else
+					pDoc->m_angle = 3.14-pDoc->m_angle;
+			}
+			else if(pDoc->m_ptBall.x - (m_BlockStartPoint.x + nx*50) < 10 )  // 从左边碰撞砖块后小球角度更新
+			{
+				if(pDoc->m_angle < 3.14/2)
+					pDoc->m_angle = 3.14-pDoc->m_angle;
+				else
+					pDoc->m_angle = 3.14-pDoc->m_angle;
+			}
+			else if(m_BlockStartPoint.y + (ny+1)*20 - pDoc->m_ptBall.y < 10)  // 从下边碰撞砖块后小球角度更新
+			{
+				pDoc->m_angle = 2*3.14 - pDoc->m_angle;
+			}
+			else if(pDoc->m_ptBall.y - (m_BlockStartPoint.y + ny*20) < 10 )	  // 从上边碰撞砖块后小球角度更新
+			{
+				pDoc->m_angle = 2*3.14 - pDoc->m_angle;
+			}
+		}
+	}
+}
